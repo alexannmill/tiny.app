@@ -55,7 +55,7 @@ const generateRandomString = () => {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let newString = "";
-  for (let x = 0; x < 7; x++) {
+  for (let x = 0; x < 6; x++) {
     const random = Math.floor(Math.random() * 62);
     newString += characters[random];
   }
