@@ -5,7 +5,7 @@ const PORT = 8080;
 app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 
-const urlDatabase = {
+let urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
@@ -36,22 +36,25 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-  console.log(req.body); 
-  res.send("Ok"); 
+  const newURL = req.body.longURL
+  const shortUrl = generateRandomString()
+  urlDatabase[shortUrl] = newURL
+  console.log(req.body);
+  console.log(urlDatabase)
+  res.send("Ok");
 });
 
-// app.listen(PORT, () => {
-//   console.log(`Example app listening on port ${PORT}!`);
-// });
-
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
+});
 
 const generateRandomString = () => {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  let newString = ""
-  for (let x = 0; x < 7; x++){
-    const random = Math.floor(Math.random()* 62) 
-    newString += characters[random]
-  };
-  return newString
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let newString = "";
+  for (let x = 0; x < 7; x++) {
+    const random = Math.floor(Math.random() * 62);
+    newString += characters[random];
+  }
+  return newString;
 };
-console.log(generateRandomString())
