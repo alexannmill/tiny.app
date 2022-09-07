@@ -27,80 +27,104 @@ const users = {
   },
 };
 
+const getUserByEmail = (email) => {
+  for (const userId in users) {
+    if (email === users[userId].email) {
+      return users[userId];
+    }
+  }
+  return null;
+};
+const generateRandomNumber = () => {
+  return Math.random().toString(36).substring(2, 8);
+};
+
 //hompage
 app.get("/urls", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
   };
   res.render("urls_index", templateVars);
 });
 
 //login
 app.post("/urls/login", (req, res) => {
-  const username = req.body.username;
-  const templateVars = {
-    username: req.cookies["username"],
+  const email = req.body.email;
+  const password = req.body.password;
+  const user = getUserByEmail(req.body.email);
+  if (!email || !password) {
+    return res.status(40).send("400 Bad Request");
+  }
+  if (!user || user.password !== password){
+    return res.status(403).send("Forbidden");
   };
-  // console.log(username)
-  res.cookie("username", username);
+  res.cookie("user_id", user.id);
   res.redirect("/urls");
 });
 
+app.get("/urls/login", (req, res) => {
+  const templateVars = {
+    user: users[req.cookies["user_id"]],
+  };
+  
+  res.render("urls_login", templateVars);
+});
 //logout
 app.post("/urls/logout", (req, res) => {
-  const username = req.body.username;
-  const templateVars = {
-    username: req.cookies["username"],
-  };
-  res.clearCookie("username", req.cookies["username"]);
+  res.clearCookie("user_id", req.cookies["user_id"]);
   res.redirect("/urls");
 });
 
 //registration page
 app.get("/urls/register", (req, res) => {
   const templateVars = {
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
   };
-  res.render("urls_registration" ,templateVars)
+  res.render("urls_registration", templateVars);
 });
 
 //registration data form
 app.post("/urls/register", (req, res) => {
-  const id = Math.random().toString(36).substring(2, 8);
-  const email = req.body.email
-  const password = req.body.password
-  users[id] ={id: id, email: email, password: password}
-  console.log(users)
-  res.cookie("user_id", id)
-  res.redirect("/urls/")
-});
-
-//page for /shorturl(id)
-app.get("/urls/:id", (req, res) => {
-  if(!urlDatabase[req.params.id]){
-    res.send("404 Page Not Found")
+  const id = generateRandomNumber();
+  const email = req.body.email;
+  const password = req.body.password;
+  if (!email || !password) {
+    return res.status(400).send("400 Bad Request");
   }
-  const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id],
-    username: req.cookies["username"],
-  };
-  res.render("urls_show", templateVars);
+  if (getUserByEmail(email) !== null) {
+    return res.status(400).send("400 Bad Request");
+  }
+  users[id] = { id, email, password };
+  res.cookie("user_id", id);
+  res.redirect("/urls/");
 });
 
 //page new short URL
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
   };
   res.render("urls_new", templateVars);
+});
+
+//page for /shorturl(id)
+app.get("/urls/:id", (req, res) => {
+  if (!urlDatabase[req.params.id]) {
+    res.send("404 Page Not Found");
+  }
+  const templateVars = {
+    id: req.params.id,
+    longURL: urlDatabase[req.params.id],
+    user: users[req.cookies["user_id"]],
+  };
+  res.render("urls_show", templateVars);
 });
 
 //adding new long URL
 app.post("/urls", (req, res) => {
   const newURL = req.body.longURL;
-  const shortUrl = Math.random().toString(36).substring(2, 8);
+  const shortUrl = generateRandomNumber();
   urlDatabase[shortUrl] = newURL;
   /// add http:// into feild ////
   res.redirect(`/urls/${shortUrl}`);
@@ -111,9 +135,6 @@ app.post("/urls/:id", (req, res) => {
   const id = req.params.id;
   const longURL = req.body.longURL;
   urlDatabase[id] = longURL;
-  const templateVars = {
-    username: req.cookies["username"],
-  };
   res.redirect(`/urls`);
 });
 
@@ -129,7 +150,6 @@ app.get("/u/:id", (req, res) => {
   longURL = urlDatabase[req.params.id];
   res.redirect(longURL);
 });
-
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
