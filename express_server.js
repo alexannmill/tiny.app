@@ -67,9 +67,13 @@ app.get("/urls/login", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
   };
-  
-  res.render("urls_login", templateVars);
+  if (users[req.cookies["user_id"]]){
+    res.redirect("/urls");
+  } else {
+    res.render("urls_login", templateVars);
+  };
 });
+
 //logout
 app.post("/urls/logout", (req, res) => {
   res.clearCookie("user_id", req.cookies["user_id"]);
@@ -81,7 +85,11 @@ app.get("/urls/register", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
   };
-  res.render("urls_registration", templateVars);
+  if (users[req.cookies["user_id"]]){
+    res.redirect("/urls");
+  }else {
+    res.render("urls_registration", templateVars);
+  };
 });
 
 //registration data form
@@ -105,7 +113,11 @@ app.get("/urls/new", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
   };
-  res.render("urls_new", templateVars);
+  if (users[req.cookies["user_id"]]){
+    res.render("urls_new", templateVars);
+  }else {
+    res.redirect("/urls/login");
+  };
 });
 
 //page for /shorturl(id)
@@ -123,6 +135,9 @@ app.get("/urls/:id", (req, res) => {
 
 //adding new long URL
 app.post("/urls", (req, res) => {
+  if (!users[req.cookies["user_id"]]){
+    res.status(403).send("Error, Login required")
+  }
   const newURL = req.body.longURL;
   const shortUrl = generateRandomNumber();
   urlDatabase[shortUrl] = newURL;
@@ -147,7 +162,10 @@ app.post("/urls/:id/delete", (req, res) => {
 
 //redirection for shortID to long url page
 app.get("/u/:id", (req, res) => {
-  longURL = urlDatabase[req.params.id];
+  const longURL = urlDatabase[req.params.id];
+  if(!longURL){
+    res.status(400).send("No URL Found")
+  }
   res.redirect(longURL);
 });
 
