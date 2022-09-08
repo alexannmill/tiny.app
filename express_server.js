@@ -54,7 +54,7 @@ app.post("/urls/login", (req, res) => {
   const password = req.body.password;
   const user = getUserByEmail(req.body.email);
   if (!email || !password) {
-    return res.status(40).send("400 Bad Request");
+    return res.status(400).send("400 Bad Request");
   }
   if (!user || user.password !== password){
     return res.status(403).send("Forbidden");

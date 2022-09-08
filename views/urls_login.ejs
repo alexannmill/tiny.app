@@ -12,21 +12,22 @@
       integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
       crossorigin="anonymous"
     />
-    <title>TinyApp - Log In</title>
+    <title>Login - TinyApp</title>
   </head>
   <header>
   <%- include('partials/_header.ejs')  %>
   </header>
   <body>
+    <h2>Login</h2>
     <form action="/urls/login" method="POST"> 
       <div class="col-md-4">
         <label for="email" class="form-label">Email address</label>
-        <input name="email" type="email" class="form-control" >
+        <input name="email" type="email" class="form-control" placeholder="Enter Email">
       </div>
       <div class="col-md-4">
         <label for="password" class="form-label">Password</label>
-        <input name="password" type="password" class="form-control" >
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <input name="password" type="password" class="form-control" placeholder="Password">
+        <button type="submit" class="btn btn-primary">Login</button>
       </div>
     </form>
   </body>
