@@ -61,6 +61,14 @@ const urlsForUser= (userID) => {
   return userDatabase;
 };
 
+///----- Home Page
+app.get("/", (req, res) => {
+  if (!users[req.cookies["user_id"]]){
+    res.redirect("/urls/login")
+  }else {
+    res.redirect("/urls")
+  }
+});
 
 ///----Authentication 
 app.get("/urls/login", (req, res) => {
@@ -161,7 +169,6 @@ app.get("/urls", (req, res) => {
 
 
 // ----- Read Individual
-//done
 app.get("/urls/:id", (req, res) => {
   const user = users[req.cookies["user_id"]]
   if (!user) {
@@ -181,12 +188,14 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id];
+  const id = req.params.id
+  const longURL = urlDatabase[req.params.id].longURL;
   if(!longURL){
     res.status(400).send("<h1>Error, No URL Found.</h1>")
   }
   res.redirect(longURL);
 });
+
 
 // ----- Edit 
 app.post("/urls/:id", (req, res) => {
@@ -195,17 +204,15 @@ app.post("/urls/:id", (req, res) => {
     return res.status(400).send("<h1>Error, Login Required.</h1>")
   }
   const id = req.params.id;
-  const userDatabase = urlsForUser(user[req.params.id]);
-  if (id !== userDatabase[id]) {
+  const userDatabase = urlsForUser(user.id)
+  if (!userDatabase[id]) {
     return res.status(400).send("<h1>Error, No URL Found.!!</h1>")
   }
   if (user){
     const longURL = req.body.longURL;
     urlDatabase[id].longURL = longURL;
-    return res.render("urls_new", templateVars);
-  }else {
-    res.redirect("/urls/login");
-  };
+    return res.redirect("/urls")
+  }
 });
 
 // ----- Delete
@@ -219,11 +226,13 @@ app.post("/urls/:id/delete", (req, res) => {
   if (!userDatabase[id]) {
    return res.status(400).send("<h1>Error, No URL Found.</h1>")
   } else {
-    delete userDatabase[id];
+    delete urlDatabase[id];
     res.redirect("/urls");
   }
 });
-// ----- Serve// Port
+
+
+// ----- Server// Port
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
