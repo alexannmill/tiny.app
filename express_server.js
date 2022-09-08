@@ -9,9 +9,20 @@ app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 app.use(cookieParser());
 
-let urlDatabase = {
-  b2xVn2: "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com",
+// let urlDatabase = {
+//   b2xVn2: "http://www.lighthouselabs.ca",
+//   "9sm5xK": "http://www.google.com",
+// };
+
+const urlDatabase = {
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW",
+  },
 };
 
 const users = {
@@ -39,10 +50,26 @@ const generateRandomNumber = () => {
   return Math.random().toString(36).substring(2, 8);
 };
 
+const urlsForUser= (id) => {
+  let userDatabase = {}
+  for (const shortID in urlDatabase){
+    if (id === shortID.userID){
+      urlDatabase + urlDatabase[shortID]
+    }
+  }
+  return userDatabase;
+};
+
 //hompage
 app.get("/urls", (req, res) => {
+  const userID = users[req.cookies["user_id"]]
+  if(!users[req.cookies["user_id"]]) {
+    res.status(403).send("Error, Login Required.")
+  }
+ const userDatabase = urlsForUser(userID)
+ console.log('userDatabase:', userDatabase)
   const templateVars = {
-    urls: urlDatabase,
+    urls: userDatabase,
     user: users[req.cookies["user_id"]],
   };
   res.render("urls_index", templateVars);
@@ -54,10 +81,10 @@ app.post("/urls/login", (req, res) => {
   const password = req.body.password;
   const user = getUserByEmail(req.body.email);
   if (!email || !password) {
-    return res.status(400).send("400 Bad Request");
+    return res.status(400).send("400 Bad Request.");
   }
   if (!user || user.password !== password){
-    return res.status(403).send("Forbidden");
+    return res.status(403).send("Forbidden.");
   };
   res.cookie("user_id", user.id);
   res.redirect("/urls");
@@ -98,10 +125,10 @@ app.post("/urls/register", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
   if (!email || !password) {
-    return res.status(400).send("400 Bad Request");
+    return res.status(400).send("400 Bad Request.");
   }
   if (getUserByEmail(email) !== null) {
-    return res.status(400).send("400 Bad Request");
+    return res.status(400).send("400 Bad Request.");
   }
   users[id] = { id, email, password };
   res.cookie("user_id", id);
@@ -122,34 +149,41 @@ app.get("/urls/new", (req, res) => {
 
 //page for /shorturl(id)
 app.get("/urls/:id", (req, res) => {
+  if(!users[req.cookies["user_id"]]) {
+    res.status(403).send("Error, Login Required.")
+  }
+  const id = req.params.id;
   if (!urlDatabase[req.params.id]) {
     res.send("404 Page Not Found");
   }
   const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    id,
     user: users[req.cookies["user_id"]],
+    longURL: urlDatabase[id].longURL,
   };
   res.render("urls_show", templateVars);
 });
 
-//adding new long URL
+//adding new long URL to make short url
 app.post("/urls", (req, res) => {
-  if (!users[req.cookies["user_id"]]){
-    res.status(403).send("Error, Login required")
+  const templateVars = {
+    user: users[req.cookies["user_id"]],
   }
-  const newURL = req.body.longURL;
+  if (!users[req.cookies["user_id"]]){
+    res.status(403).send("Error, Login Required.")
+  }
+  const userID = templateVars.user.id
+  const newUrl = req.body.longURL;
   const shortUrl = generateRandomNumber();
-  urlDatabase[shortUrl] = newURL;
-  /// add http:// into feild ////
+  urlDatabase[shortUrl] = { longURL: newUrl, userID: userID };
   res.redirect(`/urls/${shortUrl}`);
 });
 
-//form for edit long URL
+//form for edit long URL on short ID
 app.post("/urls/:id", (req, res) => {
   const id = req.params.id;
   const longURL = req.body.longURL;
-  urlDatabase[id] = longURL;
+  urlDatabase[id].longURL = longURL;
   res.redirect(`/urls`);
 });
 
