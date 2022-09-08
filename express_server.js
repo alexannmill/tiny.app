@@ -1,3 +1,4 @@
+// ----- Requirements & Setup
 const express = require("express");
 const app = express();
 const PORT = 8080;
@@ -8,12 +9,12 @@ app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 app.use(cookieParser());
+app.use(express.json());
+app.get("/urls.json", (req, res) => {
+  res.json(urlDatabase);
+}); 
 
-// let urlDatabase = {
-//   b2xVn2: "http://www.lighthouselabs.ca",
-//   "9sm5xK": "http://www.google.com",
-// };
-
+// ------- Databases
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
@@ -38,6 +39,7 @@ const users = {
   },
 };
 
+// ------- Helper Functions
 const getUserByEmail = (email) => {
   for (const userId in users) {
     if (email === users[userId].email) {
@@ -49,47 +51,18 @@ const getUserByEmail = (email) => {
 const generateRandomNumber = () => {
   return Math.random().toString(36).substring(2, 8);
 };
-
-const urlsForUser= (id) => {
+const urlsForUser= (userID) => {
   let userDatabase = {}
-  for (const shortID in urlDatabase){
-    if (id === shortID.userID){
-      urlDatabase + urlDatabase[shortID]
+  for (const shortID in urlDatabase) {
+    if (userID === urlDatabase[shortID].userID) {
+        userDatabase[shortID] = urlDatabase[shortID]
     }
   }
   return userDatabase;
 };
 
-//hompage
-app.get("/urls", (req, res) => {
-  const userID = users[req.cookies["user_id"]]
-  if(!users[req.cookies["user_id"]]) {
-    res.status(403).send("Error, Login Required.")
-  }
- const userDatabase = urlsForUser(userID)
- console.log('userDatabase:', userDatabase)
-  const templateVars = {
-    urls: userDatabase,
-    user: users[req.cookies["user_id"]],
-  };
-  res.render("urls_index", templateVars);
-});
 
-//login
-app.post("/urls/login", (req, res) => {
-  const email = req.body.email;
-  const password = req.body.password;
-  const user = getUserByEmail(req.body.email);
-  if (!email || !password) {
-    return res.status(400).send("400 Bad Request.");
-  }
-  if (!user || user.password !== password){
-    return res.status(403).send("Forbidden.");
-  };
-  res.cookie("user_id", user.id);
-  res.redirect("/urls");
-});
-
+///----Authentication 
 app.get("/urls/login", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
@@ -101,13 +74,25 @@ app.get("/urls/login", (req, res) => {
   };
 });
 
-//logout
+app.post("/urls/login", (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const user = getUserByEmail(req.body.email);
+  if (!email || !password) {
+    return res.status(400).send("<h1>Invalid Entry.</h1>");
+  }
+  if (!user || user.password !== password){
+    return res.status(403).send("<h1>Invalid Credentials.</h1>");
+  };
+  res.cookie("user_id", user.id);
+  res.redirect("/urls");
+});
+
 app.post("/urls/logout", (req, res) => {
   res.clearCookie("user_id", req.cookies["user_id"]);
   res.redirect("/urls");
 });
 
-//registration page
 app.get("/urls/register", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
@@ -119,23 +104,22 @@ app.get("/urls/register", (req, res) => {
   };
 });
 
-//registration data form
 app.post("/urls/register", (req, res) => {
   const id = generateRandomNumber();
   const email = req.body.email;
   const password = req.body.password;
   if (!email || !password) {
-    return res.status(400).send("400 Bad Request.");
+    return res.status(400).send("<h1>Error, Invalid Entry.");
   }
   if (getUserByEmail(email) !== null) {
-    return res.status(400).send("400 Bad Request.");
+    return res.status(400).send("<h1>Error, User Already Exist.</h1>");
   }
   users[id] = { id, email, password };
   res.cookie("user_id", id);
   res.redirect("/urls/");
 });
 
-//page new short URL
+// ----- Create
 app.get("/urls/new", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
@@ -147,30 +131,12 @@ app.get("/urls/new", (req, res) => {
   };
 });
 
-//page for /shorturl(id)
-app.get("/urls/:id", (req, res) => {
-  if(!users[req.cookies["user_id"]]) {
-    res.status(403).send("Error, Login Required.")
-  }
-  const id = req.params.id;
-  if (!urlDatabase[req.params.id]) {
-    res.send("404 Page Not Found");
-  }
-  const templateVars = {
-    id,
-    user: users[req.cookies["user_id"]],
-    longURL: urlDatabase[id].longURL,
-  };
-  res.render("urls_show", templateVars);
-});
-
-//adding new long URL to make short url
 app.post("/urls", (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]],
   }
   if (!users[req.cookies["user_id"]]){
-    res.status(403).send("Error, Login Required.")
+    res.status(403).send("<h1>Error, Login Required.</h1>")
   }
   const userID = templateVars.user.id
   const newUrl = req.body.longURL;
@@ -179,30 +145,85 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${shortUrl}`);
 });
 
-//form for edit long URL on short ID
-app.post("/urls/:id", (req, res) => {
-  const id = req.params.id;
-  const longURL = req.body.longURL;
-  urlDatabase[id].longURL = longURL;
-  res.redirect(`/urls`);
+// ------- Read All
+app.get("/urls", (req, res) => {
+  const user= users[req.cookies["user_id"]]
+  if(!user) {
+    res.status(403).send("<h1>Error, Login Required.</h1>")
+  }
+ const userDatabase = urlsForUser(user.id)
+  const templateVars = {
+    urls: userDatabase,
+    user,
+  };
+  res.render("urls_index", templateVars);
 });
 
-//deleting URL
-app.post("/urls/:id/delete", (req, res) => {
+
+// ----- Read Individual
+//done
+app.get("/urls/:id", (req, res) => {
+  const user = users[req.cookies["user_id"]]
+  if (!user) {
+    return res.status(400).send("<h1>Error, Login Required.</h1>")
+  }
   const id = req.params.id;
-  delete urlDatabase[id];
-  res.redirect(`/urls`);
+  const userDatabase = urlsForUser(user.id)
+  if (!userDatabase[id]) {
+   return res.status(400).send("<h1>Error, No URL Found.</h1>")
+  }
+  const templateVars = {
+    id,
+    user,
+    longURL: urlDatabase[id].longURL,
+  };
+  res.render("urls_show", templateVars);
 });
 
-//redirection for shortID to long url page
 app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id];
   if(!longURL){
-    res.status(400).send("No URL Found")
+    res.status(400).send("<h1>Error, No URL Found.</h1>")
   }
   res.redirect(longURL);
 });
 
+// ----- Edit 
+app.post("/urls/:id", (req, res) => {
+  const user= users[req.cookies["user_id"]]
+  if (!user) {
+    return res.status(400).send("<h1>Error, Login Required.</h1>")
+  }
+  const id = req.params.id;
+  const userDatabase = urlsForUser(user[req.params.id]);
+  if (id !== userDatabase[id]) {
+    return res.status(400).send("<h1>Error, No URL Found.!!</h1>")
+  }
+  if (user){
+    const longURL = req.body.longURL;
+    urlDatabase[id].longURL = longURL;
+    return res.render("urls_new", templateVars);
+  }else {
+    res.redirect("/urls/login");
+  };
+});
+
+// ----- Delete
+app.post("/urls/:id/delete", (req, res) => {
+  const user = users[req.cookies["user_id"]]
+  if (!user) {
+    return res.status(400).send("<h1>Error, Login Required.</h1>")
+  }
+  const id = req.params.id;
+  const userDatabase = urlsForUser(user.id)
+  if (!userDatabase[id]) {
+   return res.status(400).send("<h1>Error, No URL Found.</h1>")
+  } else {
+    delete userDatabase[id];
+    res.redirect("/urls");
+  }
+});
+// ----- Serve// Port
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
