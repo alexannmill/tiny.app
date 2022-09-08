@@ -4,6 +4,7 @@ const app = express();
 const PORT = 8080;
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const bcrypt = require("bcryptjs");
 
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
@@ -83,14 +84,17 @@ app.get("/urls/login", (req, res) => {
 });
 
 app.post("/urls/login", (req, res) => {
-  const email = req.body.email;
-  const password = req.body.password;
-  const user = getUserByEmail(req.body.email);
+  const {email, password} = req.body
   if (!email || !password) {
     return res.status(400).send("<h1>Invalid Entry.</h1>");
   }
-  if (!user || user.password !== password){
+  const user = getUserByEmail(email);
+  if (user === null){
     return res.status(403).send("<h1>Invalid Credentials.</h1>");
+  };
+  const comparePassword = bcrypt.compareSync(password, user.password);
+  if (!user || comparePassword ===  false){
+    return res.status(403).send("<h1>Invalid Credentials.!!</h1>");
   };
   res.cookie("user_id", user.id);
   res.redirect("/urls");
@@ -113,16 +117,16 @@ app.get("/urls/register", (req, res) => {
 });
 
 app.post("/urls/register", (req, res) => {
-  const id = generateRandomNumber();
-  const email = req.body.email;
-  const password = req.body.password;
+  const {email, password} = req.body
   if (!email || !password) {
     return res.status(400).send("<h1>Error, Invalid Entry.");
   }
   if (getUserByEmail(email) !== null) {
     return res.status(400).send("<h1>Error, User Already Exist.</h1>");
   }
-  users[id] = { id, email, password };
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const id = generateRandomNumber();
+  users[id] = { id, email, password: hashedPassword };
   res.cookie("user_id", id);
   res.redirect("/urls/");
 });
@@ -157,7 +161,7 @@ app.post("/urls", (req, res) => {
 app.get("/urls", (req, res) => {
   const user= users[req.cookies["user_id"]]
   if(!user) {
-    res.status(403).send("<h1>Error, Login Required.</h1>")
+    return res.status(403).send("<h1>Error, Login Required.</h1>")
   }
  const userDatabase = urlsForUser(user.id)
   const templateVars = {
@@ -166,7 +170,6 @@ app.get("/urls", (req, res) => {
   };
   res.render("urls_index", templateVars);
 });
-
 
 // ----- Read Individual
 app.get("/urls/:id", (req, res) => {
@@ -195,7 +198,6 @@ app.get("/u/:id", (req, res) => {
   }
   res.redirect(longURL);
 });
-
 
 // ----- Edit 
 app.post("/urls/:id", (req, res) => {
