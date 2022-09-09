@@ -50,45 +50,51 @@ const users = {
 
 ///----- Home Page
 app.get("/", (req, res) => {
-  if (!users[req.session.user_id]) {
-    res.redirect("/urls/login");
-  } else {
+  // if logged in ->urls page || if not logged -> login page
+  if (users[req.session.user_id]) {
     res.redirect("/urls");
+  } else {
+    res.redirect("/urls/login");
   }
 });
 
 ///----Authentication
 app.get("/urls/login", (req, res) => {
-  const templateVars = {
-    user: users[req.session.user_id],
-  };
+  // if logged in ->urls page || if not logged -> login page
   if (users[req.session.user_id]) {
     res.redirect("/urls");
   } else {
+    const templateVars = {
+      user: users[req.session.user_id],
+    };
     res.render("urls_login", templateVars);
   }
 });
 
 app.post("/urls/login", (req, res) => {
+  //if no entrie(s) return 400 err + message
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).send("<h1>Invalid Entry.</h1>");
   }
+  //if email does not match user database return 400 err + message
   const user = getUserByEmail(email, users);
   if (user === null) {
     return res.status(403).send("<h1>Invalid Credentials.</h1>");
   }
+  //invalid user or password return 400 err + message
   const comparePassword = bcrypt.compareSync(password, user.password);
   if (!user || comparePassword === false) {
     return res.status(403).send("<h1>Invalid Credentials.!!</h1>");
   }
+  //setting cookie + -> urls
   req.session.user_id = user.id;
   res.redirect("/urls");
 });
 
 app.post("/urls/logout", (req, res) => {
+  //removing cookie and -> urls
   req.session = null;
-
   res.redirect("/urls");
 });
 
@@ -131,25 +137,27 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-  const templateVars = {
-    user: users[req.session.user_id],
-  };
+  //unable to edit wout login
+  const user = users[req.session.user_id];
   if (!users[req.session.user_id]) {
     res.status(403).send("<h1>Error, Login Required.</h1>");
   }
-  const userID = templateVars.user.id;
+  //setting vars for new url for database
+  const userID = user.id;
   const newUrl = req.body.longURL;
   const shortUrl = generateRandomNumber();
-  urlDatabase[shortUrl] = { longURL: newUrl, userID: userID };
+  urlDatabase[shortUrl] = { longURL: newUrl, userID };
   res.redirect(`/urls/${shortUrl}`);
 });
 
 // ------- Read All
 app.get("/urls", (req, res) => {
+  //unable to view wout login
   const user = users[req.session.user_id];
   if (!user) {
     return res.status(403).send("<h1>Error, Login Required.</h1>");
   }
+  //only able to view owned urls
   const userDatabase = urlsForUser(user.id, urlDatabase);
   const templateVars = {
     urls: userDatabase,
@@ -160,14 +168,16 @@ app.get("/urls", (req, res) => {
 
 // ----- Read Individual
 app.get("/urls/:id", (req, res) => {
+  //unable to view wout login
   const user = users[req.session.user_id];
   if (!user) {
-    return res.status(400).send("<h1>Error, Login Required.</h1>");
+    return res.status(403).send("<h1>Error, Login Required.</h1>");
   }
   const id = req.params.id;
   const userDatabase = urlsForUser(user.id, urlDatabase);
+  //only able to view owned urls
   if (!userDatabase[id]) {
-    return res.status(400).send("<h1>Error, No URL Found.</h1>");
+    return res.status(404).send("<h1>Error, No URL Found.</h1>");
   }
   const templateVars = {
     id,
@@ -179,23 +189,28 @@ app.get("/urls/:id", (req, res) => {
 
 app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id].longURL;
+  // invalid long url returns 404 err + message
   if (!longURL) {
-    res.status(400).send("<h1>Error, No URL Found.</h1>");
+    res.status(404).send("<h1>Error, No URL Found.</h1>");
   }
+  //redirection for all users
   res.redirect(longURL);
 });
 
 // ----- Edit
 app.post("/urls/:id", (req, res) => {
+  //unable to view wout login
   const user = users[req.session.user_id];
   if (!user) {
-    return res.status(400).send("<h1>Error, Login Required.</h1>");
+    return res.status(403).send("<h1>Error, Login Required.</h1>");
   }
   const id = req.params.id;
   const userDatabase = urlsForUser(user.id, urlDatabase);
+  //only able to view owned urls
   if (!userDatabase[id]) {
-    return res.status(400).send("<h1>Error, No URL Found.!!</h1>");
+    return res.status(404).send("<h1>Error, No URL Found.</h1>");
   }
+  //only able to edit owned urls
   if (user) {
     const longURL = req.body.longURL;
     urlDatabase[id].longURL = longURL;
@@ -205,14 +220,16 @@ app.post("/urls/:id", (req, res) => {
 
 // ----- Delete
 app.post("/urls/:id/delete", (req, res) => {
+  //unable to delete wout login
   const user = users[req.session.user_id];
   if (!user) {
-    return res.status(400).send("<h1>Error, Login Required.</h1>");
+    return res.status(403).send("<h1>Error, Login Required.</h1>");
   }
   const id = req.params.id;
   const userDatabase = urlsForUser(user.id, urlDatabase);
+  //only able to delete owned urls
   if (!userDatabase[id]) {
-    return res.status(400).send("<h1>Error, No URL Found.</h1>");
+    return res.status(404).send("<h1>Error, No URL Found.</h1>");
   } else {
     delete urlDatabase[id];
     res.redirect("/urls");
