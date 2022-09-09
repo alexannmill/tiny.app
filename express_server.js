@@ -72,7 +72,7 @@ app.get("/urls/login", (req, res) => {
 });
 
 app.post("/urls/login", (req, res) => {
-  //if no entrie(s) return 400 err + message
+  //if no entry(s) return 400 err + message
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).send("<h1>Invalid Entry.</h1>");
