@@ -3,14 +3,18 @@ const express = require("express");
 const app = express();
 const PORT = 8080;
 const morgan = require("morgan");
-const cookieParser = require("cookie-parser");
+const cookieSession = require('cookie-session')
 const bcrypt = require("bcryptjs");
 
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
-app.use(cookieParser());
 app.use(express.json());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['top secret', 'where r my keys'],  
+  maxAge: 24 * 60 * 60 * 1000
+}));
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 }); 
@@ -41,7 +45,7 @@ const users = {
 };
 
 // ------- Helper Functions
-const getUserByEmail = (email) => {
+const getUserByEmail = (email, users) => {
   for (const userId in users) {
     if (email === users[userId].email) {
       return users[userId];
@@ -64,7 +68,7 @@ const urlsForUser= (userID) => {
 
 ///----- Home Page
 app.get("/", (req, res) => {
-  if (!users[req.cookies["user_id"]]){
+  if (!users[req.session.user_id]){
     res.redirect("/urls/login")
   }else {
     res.redirect("/urls")
@@ -74,9 +78,9 @@ app.get("/", (req, res) => {
 ///----Authentication 
 app.get("/urls/login", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
-  if (users[req.cookies["user_id"]]){
+  if (users[req.session.user_id]){
     res.redirect("/urls");
   } else {
     res.render("urls_login", templateVars);
@@ -96,20 +100,21 @@ app.post("/urls/login", (req, res) => {
   if (!user || comparePassword ===  false){
     return res.status(403).send("<h1>Invalid Credentials.!!</h1>");
   };
-  res.cookie("user_id", user.id);
+  req.session.user_id = user.id;
   res.redirect("/urls");
 });
 
 app.post("/urls/logout", (req, res) => {
-  res.clearCookie("user_id", req.cookies["user_id"]);
+  req.session = null ;
+
   res.redirect("/urls");
 });
 
 app.get("/urls/register", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
-  if (users[req.cookies["user_id"]]){
+  if (users[req.session.user_id]){
     res.redirect("/urls");
   }else {
     res.render("urls_registration", templateVars);
@@ -127,16 +132,16 @@ app.post("/urls/register", (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10);
   const id = generateRandomNumber();
   users[id] = { id, email, password: hashedPassword };
-  res.cookie("user_id", id);
+  req.session.user_id = id
   res.redirect("/urls/");
 });
 
 // ----- Create
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
-  if (users[req.cookies["user_id"]]){
+  if (users[req.session.user_id]){
     res.render("urls_new", templateVars);
   }else {
     res.redirect("/urls/login");
@@ -145,9 +150,9 @@ app.get("/urls/new", (req, res) => {
 
 app.post("/urls", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   }
-  if (!users[req.cookies["user_id"]]){
+  if (!users[req.session.user_id]){
     res.status(403).send("<h1>Error, Login Required.</h1>")
   }
   const userID = templateVars.user.id
@@ -159,7 +164,7 @@ app.post("/urls", (req, res) => {
 
 // ------- Read All
 app.get("/urls", (req, res) => {
-  const user= users[req.cookies["user_id"]]
+  const user= users[req.session.user_id]
   if(!user) {
     return res.status(403).send("<h1>Error, Login Required.</h1>")
   }
@@ -173,7 +178,7 @@ app.get("/urls", (req, res) => {
 
 // ----- Read Individual
 app.get("/urls/:id", (req, res) => {
-  const user = users[req.cookies["user_id"]]
+  const user = users[req.session.user_id]
   if (!user) {
     return res.status(400).send("<h1>Error, Login Required.</h1>")
   }
@@ -201,7 +206,7 @@ app.get("/u/:id", (req, res) => {
 
 // ----- Edit 
 app.post("/urls/:id", (req, res) => {
-  const user= users[req.cookies["user_id"]]
+  const user= users[req.session.user_id]
   if (!user) {
     return res.status(400).send("<h1>Error, Login Required.</h1>")
   }
@@ -219,7 +224,7 @@ app.post("/urls/:id", (req, res) => {
 
 // ----- Delete
 app.post("/urls/:id/delete", (req, res) => {
-  const user = users[req.cookies["user_id"]]
+  const user = users[req.session.user_id]
   if (!user) {
     return res.status(400).send("<h1>Error, Login Required.</h1>")
   }
